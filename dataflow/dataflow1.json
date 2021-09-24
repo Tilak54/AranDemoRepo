@@ -1,0 +1,45 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "INPUTCSV1",
+						"type": "DatasetReference"
+					},
+					"name": "sourcecsv1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "sqlbadtable1",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"dataset": {
+						"referenceName": "sqltablegoodrows",
+						"type": "DatasetReference"
+					},
+					"name": "sink2"
+				}
+			],
+			"transformations": [
+				{
+					"name": "ConditionalSplit1"
+				},
+				{
+					"name": "Columnfilenameforerrorrows"
+				},
+				{
+					"name": "filenameforgoodrows"
+				}
+			],
+			"script": "parameters{\n\tparameter1 as string (fileName)\n}\nsource(output(\n\t\tsaleDate as string,\n\t\tsalesItem as string,\n\t\tcountry as string,\n\t\tquantity as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> sourcecsv1\nsourcecsv1 split(isNull(toDate(saleDate, 'dd-MMM-yyyy')),\n\tdisjoint: false) ~> ConditionalSplit1@(errorrows, goodrows)\nConditionalSplit1@errorrows derive(filename = 'sales.csv') ~> Columnfilenameforerrorrows\nConditionalSplit1@goodrows derive(filename = 'sales.csv',\n\t\tsaleDate = toDate(saleDate,'dd-MMM-yyyy'),\n\t\tquantity = toInteger(quantity)) ~> filenameforgoodrows\nColumnfilenameforerrorrows sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tinput(\n\t\tsaleDate as string,\n\t\tsalesItem as string,\n\t\tcountry as string,\n\t\tquantity as string,\n\t\tfileName as string\n\t),\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError',\n\tmapColumn(\n\t\tsaleDate,\n\t\tsalesItem,\n\t\tcountry,\n\t\tquantity,\n\t\tfileName = filename\n\t)) ~> sink1\nfilenameforgoodrows sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tinput(\n\t\tsaleDate as date,\n\t\tsalesItem as string,\n\t\tcountry as string,\n\t\tquantity as integer,\n\t\tfileName as string\n\t),\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError',\n\tmapColumn(\n\t\tsaleDate,\n\t\tsalesItem,\n\t\tcountry,\n\t\tquantity,\n\t\tfileName = filename\n\t)) ~> sink2"
+		}
+	}
+}
